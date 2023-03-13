@@ -127,3 +127,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+
+
+#custom files
+data/
+training/.idea
+training/__pycache__
+training/content
+training/models
+training/tfidf_new_tokenizer.pickle
+training/language_model
+.idea
