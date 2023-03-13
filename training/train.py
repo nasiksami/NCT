@@ -9,15 +9,15 @@ from dataset import Dataset
 import sklearn
 import time
 
-df_train = pd.read_csv("F://NTC_Tickets//csv_small//csv//cleaned_completed_val.csv")
+df_train = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df_train = df_train.dropna()
 df_train = df_train.drop_duplicates()
 
-df_val = pd.read_csv("F://NTC_Tickets//csv_small//csv//cleaned_completed_val.csv")
+df_val = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df_val = df_val.dropna()
 df_val = df_val.drop_duplicates()
 
-df_test = pd.read_csv("F://NTC_Tickets//csv_small//csv//cleaned_completed_val.csv")
+df_test = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df_test = df_test.dropna()
 df_test = df_test.drop_duplicates()
 

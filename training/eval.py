@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_sc
 
 from dataset import Dataset
 
-df = pd.read_csv("F://NTC_Tickets//csv_small//csv//cleaned_completed_val.csv")
+df = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df = df.dropna()
 df = df.drop_duplicates()
 #df = df.drop(index=df.index[df["network_impact"]=="No_Impact"]).reset_index(drop=True)
