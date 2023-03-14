@@ -17,11 +17,13 @@ df_val = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_comple
 df_val = df_val.dropna()
 df_val = df_val.drop_duplicates()
 
-df_test = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
-df_test = df_test.dropna()
-df_test = df_test.drop_duplicates()
+#
+# df_test = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
+# df_test = df_test.dropna()
+# df_test = df_test.drop_duplicates()
 
-print("Training Size: {}\nValidation Size: {}\nTest Size: {}\n".format(len(df_train), len(df_val), len(df_test)))
+#print("Training Size: {}\nValidation Size: {}\nTest Size: {}\n".format(len(df_train), len(df_val), len(df_test)))
+print("Training Size: {}\nValidation Size: {}\n".format(len(df_train), len(df_val)))
 
 
 class BertClassifier(nn.Module):
@@ -37,13 +39,13 @@ class BertClassifier(nn.Module):
         self.linear = nn.Linear(768, 4)
         self.relu = nn.ReLU()
 
-  #  def forward(self, input_id, tf_features, mask):
+    def forward(self, input_id, tf_features, mask):
+    #def forward(self, input_id, mask): #use for baseline
 
-    def forward(self, input_id, mask):
-        _, pooled_output = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
+       # _, pooled_output = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False) #use for baseline
 
-        #pooled_output = torch.sum(vectors * tf_features, axis=1)
-
+        vectors, _ = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
+        pooled_output = torch.sum(vectors * tf_features, axis=1)
         dropout_output = self.dropout(pooled_output)
         linear_output = self.linear(dropout_output)
         final_layer = self.relu(linear_output)
@@ -68,7 +70,6 @@ def train(model, train_data, val_data, learning_rate, epochs):
     optimizer = Adam(model.parameters(), lr=learning_rate)
 
     best_accuracy = 0.0
-    #best_model = None
     start_time_model = time.time()
 
     if use_cuda:
@@ -82,23 +83,22 @@ def train(model, train_data, val_data, learning_rate, epochs):
         total_loss_train = 0
         start_time = time.time()
 
-        #for train_input, tf_features, train_label in tqdm(train_dataloader):
+        for train_input, tf_features, train_label in tqdm(train_dataloader):
 
-        for train_input, train_label in tqdm(train_dataloader):
+        #for train_input, train_label in tqdm(train_dataloader): #use for baseline
             train_label = train_label.to(device)
-            #tf_features = tf_features.to(device)
+            tf_features = tf_features.to(device) #comment for baseline
             mask = train_input['attention_mask'].to(device)
             input_id = train_input['input_ids'].squeeze(1).to(device)
 
-            #output = model(input_id, tf_features, mask)
-            output = model(input_id, mask)
+            output = model(input_id, tf_features, mask)
+            #output = model(input_id, mask) #use for baseline
 
             batch_loss = criterion(output, train_label.long())
             total_loss_train += batch_loss.item()
 
             acc = (output.argmax(dim=1) == train_label).sum().item()
             total_acc_train += acc
-
             model.zero_grad()
             batch_loss.backward()
             optimizer.step()
@@ -108,15 +108,15 @@ def train(model, train_data, val_data, learning_rate, epochs):
 
         with torch.no_grad():
 
-          #  for val_input, val_tf, val_label in val_dataloader:
-            for val_input, val_label in val_dataloader:
+            for val_input, val_tf, val_label in val_dataloader:
+            #for val_input, val_label in val_dataloader: #use for baseline
                 val_label = val_label.to(device)
                 mask = val_input['attention_mask'].to(device)
-               # val_tf = val_tf.to(device) #comment
+                val_tf = val_tf.to(device) #comment for baseline
                 input_id = val_input['input_ids'].squeeze(1).to(device)
 
-               # output = model(input_id, val_tf, mask)
-                output = model(input_id, mask) #comment
+                output = model(input_id, val_tf, mask)
+                #output = model(input_id, mask) #use for baseline
 
                 batch_loss = criterion(output, val_label.long())
                 total_loss_val += batch_loss.item()
@@ -141,7 +141,7 @@ def train(model, train_data, val_data, learning_rate, epochs):
         if total_acc_val / len(val_data) >= best_accuracy:
             best_accuracy = total_acc_val / len(val_data)
             best_model = model.state_dict()
-            torch.save(best_model, './models/best_model.pth')
+            torch.save(best_model, './models/best_model_tf_idf.pth')
 
     end_time_model = time.time()
     print("Total time taken to train the whole model: ", end_time_model - start_time_model, "seconds")

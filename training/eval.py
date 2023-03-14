@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-
 import torch
 from torch import nn
 from transformers import BertModel
@@ -13,41 +12,35 @@ from dataset import Dataset
 df = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df = df.dropna()
 df = df.drop_duplicates()
+
 #df = df.drop(index=df.index[df["network_impact"]=="No_Impact"]).reset_index(drop=True)
 #df = df.dropna()
 
 def evaluate(model, test_data):
     target_names = ['Degraded', 'No_Impact', 'Outage', 'Threatened']
-#    target_names = ['Degraded', 'Outage', 'Threatened']
     test = Dataset(test_data, train=False)
-
     test_dataloader = torch.utils.data.DataLoader(test, batch_size=8)
-
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
     if use_cuda:
-
         model = model.cuda()
 
     total_acc_test = 0
-
     predicted = []
     actual = []
     with torch.no_grad():
 
-        #for test_input, tf_features,test_label in tqdm(test_dataloader):
-        for test_input,test_label in tqdm(test_dataloader):
-#        for test_input, test_label in tqdm(test_dataloader):
+        for test_input, tf_features,test_label in tqdm(test_dataloader): #comment for baseline
+        #for test_input,test_label in tqdm(test_dataloader):
               test_label = test_label.to(device)
               mask = test_input['attention_mask'].to(device)
-              #tf_features = tf_features.to(device)
+              tf_features = tf_features.to(device) #comment for baseline
               input_id = test_input['input_ids'].squeeze(1).to(device)
 
-              #output = model(input_id, tf_features, mask)
-              output = model(input_id, mask)
-#
-#             output = model(input_id, mask)
+              output = model(input_id, tf_features, mask) #comment for baseline
+              #output = model(input_id, mask)
+
               #import pdb;pdb.set_trace()
               predicted.extend(output.argmax(dim=1).tolist())
               actual.extend(test_label.tolist())
@@ -83,11 +76,11 @@ class BertClassifier(nn.Module):
         self.linear = nn.Linear(768, 4)
         self.relu = nn.ReLU()
 
-#    def forward(self, input_id, tf_features, mask):
-    def forward(self, input_id, mask):
-        #vectors, _ = self.bert(input_ids= input_id, attention_mask=mask,return_dict=False)
-        _, pooled_output = self.bert(input_ids= input_id, attention_mask=mask,return_dict=False)
-        #pooled_output = torch.sum(vectors*tf_features,axis=1)
+    def forward(self, input_id, tf_features, mask): #comment for baseline
+    #def forward(self, input_id, mask):
+        vectors, _ = self.bert(input_ids= input_id, attention_mask=mask,return_dict=False) #comment for baseline
+        #_, pooled_output = self.bert(input_ids= input_id, attention_mask=mask,return_dict=False)
+        pooled_output = torch.sum(vectors*tf_features,axis=1) #comment for baseline
         dropout_output = self.dropout(pooled_output)
         linear_output = self.linear(dropout_output)
         final_layer = self.relu(linear_output)

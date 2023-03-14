@@ -10,7 +10,6 @@ PRE_TRAINED_MODEL_NAME = 'bert-base-uncased'
 tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
 #tokenizer = AutoTokenizer.from_pretrained('./trained_tokenizer')
-
 #tokenizer = BertTokenizer.from_pretrained('./trained_tokenizer')
 #tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
@@ -29,7 +28,7 @@ class Dataset(torch.utils.data.Dataset):
 
         self.labels = [labels[label] for label in df['network_impact']]
         self.texts = []
-      #  self.tf_idf = [] #comment
+        self.tf_idf = [] #comment for baseline
 
         for i, row in df.iterrows():
             if row["_headline"] != row["_description"]:
@@ -39,7 +38,7 @@ class Dataset(torch.utils.data.Dataset):
                                             max_length=512, truncation=True,
                                             return_tensors="pt")
                 self.texts.append(tmp)
-                # self.tf_idf.append(" ".join([str(x) for x in tmp.input_ids[0].numpy()]))  #comment
+                self.tf_idf.append(" ".join([str(x) for x in tmp.input_ids[0].numpy()]))  #comment for baseline
             else:
                 tmp = tokenizer(str(row["_description"]),
                                         padding='max_length',
@@ -47,23 +46,23 @@ class Dataset(torch.utils.data.Dataset):
                                         truncation=True,
                                         return_tensors="pt")
                 self.texts.append(tmp)
-               # self.tf_idf.append(" ".join([str(x) for x in tmp.input_ids[0].numpy()])) #comment
+                self.tf_idf.append(" ".join([str(x) for x in tmp.input_ids[0].numpy()])) #comment for baseline
 
 
-        # comment full block
-        # if train:
-        #     vectorizer = TfidfVectorizer(use_idf=True,
-        #                     smooth_idf=True,
-        #                     ngram_range=(1,1))
-        #     # import pdb;pdb.set_trace()
-        #     tfidf = vectorizer.fit(self.tf_idf)
-        #     pickle.dump(tfidf, open("./tfidf_new_tokenizer.pickle", "wb"))
-        #     self.tf_features = vectorizer.transform(self.tf_idf)
-        # else:
-        #     vectorizer = pickle.load(open("./tfidf_new_tokenizer.pickle", "rb"))
-        #     self.tf_features = vectorizer.transform(self.tf_idf)
-        #
-        # self.feature_names = np.array(vectorizer.get_feature_names_out())
+        # comment full block for baseline
+        if train:
+            vectorizer = TfidfVectorizer(use_idf=True,
+                            smooth_idf=True,
+                            ngram_range=(1,1))
+            # import pdb;pdb.set_trace()
+            tfidf = vectorizer.fit(self.tf_idf)
+            pickle.dump(tfidf, open("./tfidf_new_tokenizer.pickle", "wb"))
+            self.tf_features = vectorizer.transform(self.tf_idf)
+        else:
+            vectorizer = pickle.load(open("./tfidf_new_tokenizer.pickle", "rb"))
+            self.tf_features = vectorizer.transform(self.tf_idf)
+
+        self.feature_names = np.array(vectorizer.get_feature_names_out())
 
 
         #print(len(self.texts))
@@ -98,9 +97,9 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
 
         batch_texts = self.get_batch_texts(idx)
-       #batch_tf = self.get_batch_tf_features(idx) #comment
+        batch_tf = self.get_batch_tf_features(idx) #comment for baseline
         batch_y = self.get_batch_labels(idx)
 
-        #return batch_texts, batch_tf, batch_y
+        return batch_texts, batch_tf, batch_y
 
-        return batch_texts, batch_y #comment
+        #return batch_texts, batch_y #comment #use for baseline
