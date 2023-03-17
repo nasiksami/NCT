@@ -26,14 +26,25 @@ df_val = df_val.drop_duplicates()
 print("Training Size: {}\nValidation Size: {}\n".format(len(df_train), len(df_val)))
 
 
+
+degraded_weight = len(df_train[df_train["network_impact"]!="Degraded"])/len(df_train)
+no_impact_weight = len(df_train[df_train["network_impact"]!="No_Impact"])/len(df_train)
+outage_weight = len(df_train[df_train["network_impact"]!="Outage"])/len(df_train)
+threatened_weight = len(df_train[df_train["network_impact"]!="Threatened"])/len(df_train)
+
+WEIGHTS = torch.tensor([degraded_weight, no_impact_weight, outage_weight, threatened_weight])
+#WEIGHTS = torch.tensor([degraded_weight, outage_weight, threatened_weight])
+
+
+
 class BertClassifier(nn.Module):
 
     def __init__(self, dropout=0.5):
         super(BertClassifier, self).__init__()
 
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        #self.bert = BertModel.from_pretrained('bert-base-uncased')
 
-        #self.bert = BertModel.from_pretrained('./language_model/bert-base-uncased-finetuned-NCT')
+        self.bert = BertModel.from_pretrained('./language_model/bert-base-uncased-finetuned-NCT')
 
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(768, 4)
@@ -53,6 +64,8 @@ class BertClassifier(nn.Module):
         return final_layer
 
 
+
+
 def train(model, train_data, val_data, learning_rate, epochs):
     global WEIGHTS
     train = Dataset(train_data, train=True)
@@ -66,15 +79,18 @@ def train(model, train_data, val_data, learning_rate, epochs):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     torch.cuda.set_device(device)
-    criterion = nn.CrossEntropyLoss()  # weight=WEIGHTS)
+    #criterion = nn.CrossEntropyLoss() # weight=WEIGHTS()
+    criterion = nn.CrossEntropyLoss(weight=WEIGHTS)
     optimizer = Adam(model.parameters(), lr=learning_rate)
+
+
 
     best_accuracy = 0.0
     start_time_model = time.time()
 
     if use_cuda:
         model = model.cuda()
-        # WEIGHTS = WEIGHTS.cuda()
+        WEIGHTS = WEIGHTS.cuda()
         criterion = criterion.cuda()
 
     for epoch_num in range(epochs):
@@ -131,7 +147,7 @@ def train(model, train_data, val_data, learning_rate, epochs):
                 | Val Accuracy: {total_acc_val / len(val_data): .3f}')
 
         end_time = time.time()
-        print("Time taken to train this epoch " ,epoch_num, " : ", end_time - start_time, "seconds")
+        print("Time taken to train this epoch " ,epoch_num+1, " : ", end_time - start_time, "seconds")
 
         # if (epoch_num+1)%2==0:
         #    torch.save(model.state_dict(), "./models/completed_weighted_fusion_model_"+str(epoch_num+1)+".pth")
@@ -141,7 +157,7 @@ def train(model, train_data, val_data, learning_rate, epochs):
         if total_acc_val / len(val_data) >= best_accuracy:
             best_accuracy = total_acc_val / len(val_data)
             best_model = model.state_dict()
-            torch.save(best_model, './models/best_model_tf_idf.pth')
+            torch.save(best_model, './models/best_model_tf_idf_augmented.pth')
 
     end_time_model = time.time()
     print("Total time taken to train the whole model: ", end_time_model - start_time_model, "seconds")

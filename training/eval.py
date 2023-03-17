@@ -6,8 +6,8 @@ from transformers import BertModel
 from torch.optim import Adam
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score, classification_report, confusion_matrix
-
 from dataset import Dataset
+
 
 df = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df = df.dropna()
@@ -46,9 +46,14 @@ def evaluate(model, test_data):
               actual.extend(test_label.tolist())
 
     print('Accuracy: ', round(accuracy_score(actual, predicted), 3))
-    print('Precision: ', round(precision_score(actual, predicted, average='micro', zero_division=1), 3))
+
+    #print('Precision: ', round(precision_score(actual, predicted, average='micro', zero_division=1), 3))
+    print('Precision: ', round(precision_score(actual, predicted, average='micro'), 3))
+
     print('Recall: ', round(recall_score(actual, predicted, average='micro'), 3))
-    print('F1 score: ', round(f1_score(actual, predicted, average='micro', zero_division=1), 3))
+
+    #print('F1 score: ', round(f1_score(actual, predicted, average='micro', zero_division=1), 3))
+    print('F1 score: ', round(f1_score(actual, predicted, average='micro'), 3))
 
     print(classification_report(actual, predicted, target_names=target_names, digits=3))
 
@@ -72,6 +77,8 @@ class BertClassifier(nn.Module):
         super(BertClassifier, self).__init__()
 
         self.bert = BertModel.from_pretrained('bert-base-uncased') # it should be uncased
+        #self.bert = BertModel.from_pretrained('./language_model/bert-base-uncased-finetuned-NCT')
+
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(768, 4)
         self.relu = nn.ReLU()
@@ -88,7 +95,7 @@ class BertClassifier(nn.Module):
         return final_layer
 
 model = BertClassifier()
-model.load_state_dict(torch.load("./models/best_model.pth"))
+model.load_state_dict(torch.load("./models/best_model_tf_idf_augmented.pth"))
 model.eval()
 
 evaluate(model, df)

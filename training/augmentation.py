@@ -3,7 +3,7 @@ import nlpaug.augmenter.word as naw
 import nlpaug.flow as naf
 from tqdm import tqdm
 
-df = pd.read_csv("F://NTC_Tickets//csv_small//csv//cleaned_completed_train.csv")
+df = pd.read_csv("F://NTC_Tickets//NCT//data//csv_processed_raw//cleaned_completed_train.csv")
 
 df = df.dropna()
 
@@ -104,4 +104,4 @@ print("No Impact: ", len(aug_df[aug_df["network_impact"]=="No_Impact"]))
 print("Outage: ", len(aug_df[aug_df["network_impact"]=="Outage"]))
 print("Threatened: ", len(aug_df[aug_df["network_impact"]=="Threatened"]))
 
-aug_df.to_csv("F://NTC_Tickets//csv_small//csv//completed_augmented_train.csv", index=False)
+aug_df.to_csv("F://NTC_Tickets//NCT//data//csv_processed_raw//completed_augmented_train.csv", index=False)

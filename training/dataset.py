@@ -6,10 +6,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle
 
 
-PRE_TRAINED_MODEL_NAME = 'bert-base-uncased'
-tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
+#PRE_TRAINED_MODEL_NAME = 'bert-base-uncased'
+#tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
-#tokenizer = AutoTokenizer.from_pretrained('./trained_tokenizer')
+tokenizer = AutoTokenizer.from_pretrained('./trained_tokenizer')
 #tokenizer = BertTokenizer.from_pretrained('./trained_tokenizer')
 #tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
@@ -20,7 +20,7 @@ labels = {'Degraded':0,
           'Threatened':3
           }
 
-TOP_N = 3
+TOP_N = 1
 
 class Dataset(torch.utils.data.Dataset):
 
