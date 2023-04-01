@@ -48,17 +48,21 @@ def evaluate(model, test_data):
     print('Accuracy: ', round(accuracy_score(actual, predicted), 3))
 
     #print('Precision: ', round(precision_score(actual, predicted, average='micro', zero_division=1), 3))
+
     print('Precision: ', round(precision_score(actual, predicted, average='micro'), 3))
 
     print('Recall: ', round(recall_score(actual, predicted, average='micro'), 3))
 
     #print('F1 score: ', round(f1_score(actual, predicted, average='micro', zero_division=1), 3))
+
     print('F1 score: ', round(f1_score(actual, predicted, average='micro'), 3))
 
     print(classification_report(actual, predicted, target_names=target_names, digits=3))
 
     c_m = confusion_matrix(actual, predicted, labels=[0, 1, 2, 3])
+
     print("Confusion matrix: ")
+
     print(c_m)
 
 

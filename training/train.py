@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import torch
+from sklearn.metrics import confusion_matrix
 from torch import nn
 from transformers import BertModel
 from torch.optim import Adam
@@ -10,6 +11,10 @@ from sklearn.model_selection import StratifiedKFold
 from dataset import Dataset
 import sklearn
 import time
+from transformers import logging
+logging.set_verbosity_error()
+
+
 
 df_train = pd.read_csv(".//csv_small//csv//cleaned_completed_val.csv")
 #df_train = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
@@ -23,14 +28,12 @@ df_val = df_val.drop_duplicates()
 
 print("Training Size: {}\nValidation Size: {}\n".format(len(df_train), len(df_val)))
 
-degraded_weight = len(df_train[df_train["network_impact"]!="Degraded"])/len(df_train)
-no_impact_weight = len(df_train[df_train["network_impact"]!="No_Impact"])/len(df_train)
-outage_weight = len(df_train[df_train["network_impact"]!="Outage"])/len(df_train)
-threatened_weight = len(df_train[df_train["network_impact"]!="Threatened"])/len(df_train)
+degraded_weight = len(df_val[df_val["network_impact"]!="Degraded"])/len(df_val)
+no_impact_weight = len(df_val[df_val["network_impact"]!="No_Impact"])/len(df_val)
+outage_weight = len(df_val[df_val["network_impact"]!="Outage"])/len(df_val)
+threatened_weight = len(df_val[df_val["network_impact"]!="Threatened"])/len(df_val)
 
 WEIGHTS = torch.tensor([degraded_weight, no_impact_weight, outage_weight, threatened_weight])
-#WEIGHTS = torch.tensor([degraded_weight, outage_weight, threatened_weight])
-
 
 
 class BertClassifier(nn.Module):
@@ -59,7 +62,7 @@ class BertClassifier(nn.Module):
         return final_layer
 
 
-def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
+def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
     global WEIGHTS
     data = pd.concat([train_data, val_data], axis=0).reset_index(drop=True)
 
@@ -172,10 +175,24 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
             if total_acc_val / len(val_data) >= best_accuracy:
                 best_accuracy = total_acc_val / len(val_data)
                 best_model = model.state_dict()
-                torch.save(best_model, './models/best_model_tf_idf_augmented.pth')   # the current issue is, it saves one model per fold and replaces the previous model
+                torch.save(best_model, './models/best_model_tf_idf_augmented.pth')
+                # the current issue is, it saves one model per fold and replaces the previous model
+
                 #tasks: how to take multiple models and select the mean of them
 
+
+
                 # SHOW CLASSIFICATION
+                # c_m = confusion_matrix(val_data, total_acc_val, labels=[0, 1, 2, 3])
+                # print("Confusion matrix: ")
+                # print(c_m)
+                # cm = confusion_matrix(val_data, total_acc_val, normalize="true").diagonal()
+                # target_names = ['Degraded', 'No_Impact', 'Outage', 'Threatened']
+                # print("Class-wise Accuracy: ")
+                # for i, cls in enumerate(target_names):
+                #     print(cls + " : ", round(cm[i], 3))
+
+
 
         end_time_model = time.time()
         print("Total time taken to train the whole model: ", (end_time_model - start_time_model) / 60, "minutes")
