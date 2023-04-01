@@ -140,3 +140,5 @@ training/models
 training/tfidf_new_tokenizer.pickle
 training/language_model
 .idea
+training/csv_small
+training/csv_processed

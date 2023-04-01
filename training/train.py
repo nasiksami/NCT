@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import torch
 from torch import nn
@@ -10,13 +11,13 @@ from dataset import Dataset
 import sklearn
 import time
 
-df_train = pd.read_csv(".//csv_small//csv//cleaned_completed_train.csv")
+df_train = pd.read_csv(".//csv_small//csv//cleaned_completed_val.csv")
 #df_train = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df_train = df_train.dropna()
 df_train = df_train.drop_duplicates()
 
 #df_val = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
-df_val = pd.read_csv(".//csv_small//csv//cleaned_completed_test.csv")
+df_val = pd.read_csv(".//csv_small//csv//cleaned_completed_val.csv")
 df_val = df_val.dropna()
 df_val = df_val.drop_duplicates()
 
@@ -85,6 +86,7 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
         criterion = criterion.cuda()
 
     val_acc_list_per_fold = []
+    val_loss_list_per_fold = []
 
     for fold, (train_idx, val_idx) in enumerate(folds):
 
@@ -98,12 +100,10 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
         train_dataloader = torch.utils.data.DataLoader(Dataset(train_dataset, train=True), batch_size=batch_size, shuffle=True)
         val_dataloader = torch.utils.data.DataLoader(Dataset(val_dataset, train=False), batch_size=batch_size)
 
-        # print(f"Fold {fold + 1} - Train: {len(train_subsampler)}, Validation: {len(val_subsampler)}")
-
         # show validation acc after each iteration for 5 different fold then avg the acc
-        val_acc_list = []
+        # val_acc_list = []
+        # val_loss_list = []
 
-        # print("Val Acc = ",val_acc_list)
 
         for epoch_num in range(epochs):
 
@@ -137,6 +137,9 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
 
             with torch.no_grad():
 
+
+##
+
                 for val_input, val_tf, val_label in val_dataloader:
                     # for val_input, val_label in val_dataloader: #use for baseline
                     val_label = val_label.to(device)
@@ -162,6 +165,9 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
             end_time = time.time()
             print("Time taken to train this epoch ", epoch_num + 1, " : ", (end_time - start_time) / 60, "minutes")
 
+
+
+
             # save the best model so far
             if total_acc_val / len(val_data) >= best_accuracy:
                 best_accuracy = total_acc_val / len(val_data)
@@ -169,15 +175,25 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
                 torch.save(best_model, './models/best_model_tf_idf_augmented.pth')   # the current issue is, it saves one model per fold and replaces the previous model
                 #tasks: how to take multiple models and select the mean of them
 
+                # SHOW CLASSIFICATION
+
         end_time_model = time.time()
         print("Total time taken to train the whole model: ", (end_time_model - start_time_model) / 60, "minutes")
+
+
+
+        # val_acc_list_per_fold.append(val_acc_list)
+        # print (val_acc_list)
+        # avg_val_acc = np.mean(val_acc_list)
+        # print(f"Average validation accuracy for fold {fold + 1}: {avg_val_acc:.4f}")
 
     # saving the best model from all epochs
     # torch.save(best_model, './models/best_model_from_epoch_' + str(epoch_num + 1) + '.pt')
 
 
+
 EPOCHS = 2
-batch_size = 8
+batch_size = 4
 model = BertClassifier()
 LR = 1e-6
 train(model, df_train, df_val, LR, EPOCHS)

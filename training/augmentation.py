@@ -3,8 +3,8 @@ import nlpaug.augmenter.word as naw
 import nlpaug.flow as naf
 from tqdm import tqdm
 
-df = pd.read_csv("F://NTC_Tickets//NCT//data//csv_processed_raw//cleaned_completed_train.csv")
-
+df = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_test_aug.csv")
+df['data_type'] = 'original'
 df = df.dropna()
 
 print("Degraded: ", len(df[df["network_impact"]=="Degraded"]))
@@ -74,6 +74,7 @@ for index, row in tqdm(degraded_df.iterrows()):
         tmp_dict["_description"] = description[i]
         tmp_dict["network_impact"] = label[i]
         augmented_df.append(tmp_dict)
+        #augmented_df = pd.DataFrame({'data_type': 'augmented'})
 
 augmented_df = pd.DataFrame(augmented_df)
 degraded_df = pd.concat([augmented_df, degraded_df], ignore_index=True)
@@ -104,4 +105,4 @@ print("No Impact: ", len(aug_df[aug_df["network_impact"]=="No_Impact"]))
 print("Outage: ", len(aug_df[aug_df["network_impact"]=="Outage"]))
 print("Threatened: ", len(aug_df[aug_df["network_impact"]=="Threatened"]))
 
-aug_df.to_csv("F://NTC_Tickets//NCT//data//csv_processed_raw//completed_augmented_train.csv", index=False)
+aug_df.to_csv("F://NTC_Tickets//NCT//data//csv_small//csv//01_completed_augmented_train.csv", index=False)
