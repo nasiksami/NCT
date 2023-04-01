@@ -67,8 +67,8 @@ def evaluate(model, test_data):
 
 
     cm = confusion_matrix(actual, predicted, normalize="true").diagonal()
-#    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-#    diag = cm.diagonal()
+#   cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+#   diag = cm.diagonal()
     print("Class-wise Accuracy: ")
     for i, cls in enumerate(target_names):
         print(cls+" : ", round(cm[i], 3))

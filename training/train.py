@@ -1,7 +1,7 @@
+import pickle
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import confusion_matrix
 from torch import nn
 from transformers import BertModel
 from torch.optim import Adam
@@ -9,19 +9,23 @@ from tqdm import tqdm
 from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 from dataset import Dataset
-import sklearn
 import time
 from transformers import logging
 logging.set_verbosity_error()
+from sklearn.metrics import classification_report, confusion_matrix
+import os
 
+
+# Create a new directory inside the 'models' folder
+new_folder_name = "Cross_Validation_Experiments"
+path = os.path.join(os.getcwd(), "models", new_folder_name)
+os.makedirs(path)
 
 
 df_train = pd.read_csv(".//csv_small//csv//cleaned_completed_val.csv")
-#df_train = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df_train = df_train.dropna()
 df_train = df_train.drop_duplicates()
 
-#df_val = pd.read_csv("F://NTC_Tickets//NCT//data//csv_small//csv//cleaned_completed_val.csv")
 df_val = pd.read_csv(".//csv_small//csv//cleaned_completed_val.csv")
 df_val = df_val.dropna()
 df_val = df_val.drop_duplicates()
@@ -42,7 +46,6 @@ class BertClassifier(nn.Module):
         super(BertClassifier, self).__init__()
 
         #self.bert = BertModel.from_pretrained('bert-base-uncased')
-
         self.bert = BertModel.from_pretrained('./language_model/bert-base-uncased-finetuned-NCT')
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(768, 4)
@@ -52,20 +55,18 @@ class BertClassifier(nn.Module):
     #def forward(self, input_id, mask): #use for baseline
 
        # _, pooled_output = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False) #use for baseline
-
         vectors, _ = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
         pooled_output = torch.sum(vectors * tf_features, axis=1)
         dropout_output = self.dropout(pooled_output)
         linear_output = self.linear(dropout_output)
         final_layer = self.relu(linear_output)
-
         return final_layer
 
 
 def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
+
     global WEIGHTS
     data = pd.concat([train_data, val_data], axis=0).reset_index(drop=True)
-
     # USING KFOLD CROSS VALIDATION
     #kfold = KFold(n_splits=n_splits, shuffle=True)
     #folds = kfold.split(data)
@@ -80,7 +81,10 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
     # criterion = nn.CrossEntropyLoss() # weight=WEIGHTS()
     criterion = nn.CrossEntropyLoss(weight=WEIGHTS)
     optimizer = Adam(model.parameters(), lr=learning_rate)
-    best_accuracy = 0.0
+
+    #best_accuracy = 0.0 # for saving one model per epoch
+    best_models = []    # for saving one model per fold
+
     start_time_model = time.time()
 
     if use_cuda:
@@ -88,32 +92,21 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
         WEIGHTS = WEIGHTS.cuda()
         criterion = criterion.cuda()
 
-    val_acc_list_per_fold = []
-    val_loss_list_per_fold = []
 
     for fold, (train_idx, val_idx) in enumerate(folds):
 
         print(f"Fold {fold + 1} - Train: {len(train_data)}, Validation: {len(val_data)}")
-        #print("Train indices:", train_idx)  #to check that every fold has different elements
-        #print("Test indices:", val_idx)
 
         train_dataset = data.iloc[train_idx]
         val_dataset = data.iloc[val_idx]
-
         train_dataloader = torch.utils.data.DataLoader(Dataset(train_dataset, train=True), batch_size=batch_size, shuffle=True)
         val_dataloader = torch.utils.data.DataLoader(Dataset(val_dataset, train=False), batch_size=batch_size)
-
-        # show validation acc after each iteration for 5 different fold then avg the acc
-        # val_acc_list = []
-        # val_loss_list = []
-
+        best_accuracy_per_fold = 0.0
 
         for epoch_num in range(epochs):
-
             total_acc_train = 0
             total_loss_train = 0
             start_time = time.time()
-
             model.train()
 
             for train_input, tf_features, train_label in tqdm(train_dataloader):
@@ -122,13 +115,10 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
                 tf_features = tf_features.to(device)  # comment for baseline
                 mask = train_input['attention_mask'].to(device)
                 input_id = train_input['input_ids'].squeeze(1).to(device)
-
                 output = model(input_id, tf_features, mask)
                 # output = model(input_id, mask) #use for baseline
-
                 batch_loss = criterion(output, train_label.long())
                 total_loss_train += batch_loss.item()
-
                 acc = (output.argmax(dim=1) == train_label).sum().item()
                 total_acc_train += acc
                 model.zero_grad()
@@ -139,9 +129,9 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
             total_loss_val = 0
 
             with torch.no_grad():
-
-
-##
+                model.eval()
+                val_preds = []
+                val_labels = []
 
                 for val_input, val_tf, val_label in val_dataloader:
                     # for val_input, val_label in val_dataloader: #use for baseline
@@ -149,14 +139,15 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
                     mask = val_input['attention_mask'].to(device)
                     val_tf = val_tf.to(device)  # comment for baseline
                     input_id = val_input['input_ids'].squeeze(1).to(device)
-
                     output = model(input_id, val_tf, mask)
                     # output = model(input_id, mask) #use for baseline
 
+                    val_preds.extend(output.argmax(dim=1).cpu().numpy())
+                    val_labels.extend(val_label.cpu().numpy())
+
                     batch_loss = criterion(output, val_label.long())
                     total_loss_val += batch_loss.item()
-
-                    acc = (output.argmax(dim=1) == val_label).sum().item()
+                    acc = (output.argmax(dim=1) == val_label).sum().item()  #
                     total_acc_val += acc
 
             print(
@@ -169,45 +160,43 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=2):
             print("Time taken to train this epoch ", epoch_num + 1, " : ", (end_time - start_time) / 60, "minutes")
 
 
+            # save the best model so far per fold
 
+            #if total_acc_val / len(val_data) >= best_accuracy: # for saving model per epoch
 
-            # save the best model so far
-            if total_acc_val / len(val_data) >= best_accuracy:
-                best_accuracy = total_acc_val / len(val_data)
+            if total_acc_val / len(val_data) >= best_accuracy_per_fold:
+                #best_accuracy = total_acc_val / len(val_data)
+                best_accuracy_per_fold  = total_acc_val / len(val_data)
                 best_model = model.state_dict()
-                torch.save(best_model, './models/best_model_tf_idf_augmented.pth')
-                # the current issue is, it saves one model per fold and replaces the previous model
-
+                torch.save(best_model,f'./models/Cross_Validation_Experiments/best_model_tf_idf_augmented_fold_{fold + 1}.pth')
                 #tasks: how to take multiple models and select the mean of them
 
 
+            # calculate evaluation metrics at the end of each fold
+            if epoch_num == epochs - 1:
+                # calculate classification report, confusion matrix, and class-wise accuracy
+                target_names = ['Degraded', 'No_Impact', 'Outage', 'Threatened']
+                report = classification_report(val_labels, val_preds, target_names=target_names, digits=4, zero_division=1)
+                cm = confusion_matrix(val_labels, val_preds)
+                class_accuracy = cm.diagonal() / cm.sum(axis=1)
+                class_accuracy_output=[]
+                for i, cls in enumerate(target_names):
+                    class_accuracy_output.append(cls + " : " + str(round(class_accuracy[i], 4)))
 
-                # SHOW CLASSIFICATION
-                # c_m = confusion_matrix(val_data, total_acc_val, labels=[0, 1, 2, 3])
-                # print("Confusion matrix: ")
-                # print(c_m)
-                # cm = confusion_matrix(val_data, total_acc_val, normalize="true").diagonal()
-                # target_names = ['Degraded', 'No_Impact', 'Outage', 'Threatened']
-                # print("Class-wise Accuracy: ")
-                # for i, cls in enumerate(target_names):
-                #     print(cls + " : ", round(cm[i], 3))
-
+                # save metrics to file
+                with open(f'./models/Cross_Validation_Experiments/fold_{fold + 1}_epoch_{epoch_num + 1}_metrics.txt', 'w') as f:
+                    f.write(f'Classification Report:\n{report}\n\n')
+                    f.write(f'Confusion Matrix:\n{cm}\n\n')
+                    f.write('Class-wise Accuracy:\n')
+                    for cls_acc in class_accuracy_output:
+                        f.write(cls_acc + '\n')
+                    f.write('\n')
 
 
         end_time_model = time.time()
         print("Total time taken to train the whole model: ", (end_time_model - start_time_model) / 60, "minutes")
-
-
-
-        # val_acc_list_per_fold.append(val_acc_list)
-        # print (val_acc_list)
-        # avg_val_acc = np.mean(val_acc_list)
-        # print(f"Average validation accuracy for fold {fold + 1}: {avg_val_acc:.4f}")
-
-    # saving the best model from all epochs
-    # torch.save(best_model, './models/best_model_from_epoch_' + str(epoch_num + 1) + '.pt')
-
-
+        best_models.append(best_model)
+    return best_models
 
 EPOCHS = 2
 batch_size = 4
