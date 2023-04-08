@@ -12,11 +12,11 @@ import time
 from transformers import logging
 logging.set_verbosity_error()
 from sklearn.metrics import classification_report, confusion_matrix
-
+import gc
 
 
 #df_train = pd.read_csv("./csv_processed_raw/csv/custom_augmented_train.csv")
-df_train = pd.read_csv(".//csv_small//csv//completed_augmented_train.csv")
+df_train = pd.read_csv(".//csv_small//csv//cleaned_completed_test.csv")
 df_train = df_train.dropna()
 df_train = df_train.drop_duplicates()
 
@@ -74,12 +74,14 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     torch.cuda.set_device(device)
+
     criterion = nn.CrossEntropyLoss(weight=WEIGHTS)
     optimizer = Adam(model.parameters(), lr=learning_rate)
 
     #best_accuracy = 0.0 # for saving one model per epoch
-    best_models = []    # for saving one model per fold
+    #best_models = []    # for saving one model per fold
     start_time_model = time.time()
+
 
     if use_cuda:
         model = model.cuda()
@@ -88,15 +90,20 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
 
     for fold, (train_idx, val_idx) in enumerate(folds):
 
-        #print(f"Fold {fold + 1} - Train: {len(train_data)}, Validation: {len(val_data)}")
-
         train_dataset = data.iloc[train_idx]
         val_dataset = data.iloc[val_idx]
         print(f"Fold {fold + 1} - Train: {len(train_dataset)}, Validation: {len(val_dataset)}")
-
         train_dataloader = torch.utils.data.DataLoader(Dataset(train_dataset, train=True), batch_size=batch_size, shuffle=True)
         val_dataloader = torch.utils.data.DataLoader(Dataset(val_dataset, train=False), batch_size=batch_size)
         best_accuracy_per_fold = 0.0
+
+
+
+        #
+        # model = BertClassifier()
+        # model.to(device)
+        # optimizer = Adam(model.parameters(), lr=learning_rate)
+
 
         for epoch_num in range(epochs):
             total_acc_train = 0
@@ -114,7 +121,9 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
                 # output = model(input_id, mask) #use for baseline
                 batch_loss = criterion(output, train_label.long())
                 total_loss_train += batch_loss.item()
-                acc = (output.argmax(dim=1) == train_label).sum().item()
+                acc = (output.detach().cpu().argmax(dim=1) == train_label.detach().cpu()).sum().item()
+
+                #acc = (output.argmax(dim=1) == train_label).sum().item()
                 total_acc_train += acc
                 model.zero_grad()
                 batch_loss.backward()
@@ -136,8 +145,8 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
                     input_id = val_input['input_ids'].squeeze(1).to(device)
                     output = model(input_id, val_tf, mask)
                     # output = model(input_id, mask) #use for baseline
-                    val_preds.extend(output.argmax(dim=1).cpu().numpy())
-                    val_labels.extend(val_label.cpu().numpy())
+                    val_preds.extend(output.argmax(dim=1).detach().cpu().numpy())
+                    val_labels.extend(val_label.detach().cpu().numpy())
                     batch_loss = criterion(output, val_label.long())
                     total_loss_val += batch_loss.item()
                     acc = (output.argmax(dim=1) == val_label).sum().item()  #
@@ -183,13 +192,31 @@ def train(model, train_data, val_data, learning_rate, epochs, n_splits=5):
                         f.write(cls_acc + '\n')
                     f.write('\n')
 
+
+
+        del model
+        del optimizer
+        del train_label
+        del tf_features
+        del mask
+        del input_id
+
+        torch.cuda.empty_cache()
+        gc.collect()
+
+        model = BertClassifier()
+        model.to(device)
+        optimizer = Adam(model.parameters(), lr=learning_rate)
+
         end_time_model = time.time()
         print("Total time taken to train the whole model: ", (end_time_model - start_time_model) / 60, "minutes")
-        best_models.append(best_model)
-    return best_models
 
-EPOCHS = 10
-batch_size = 32
+
+EPOCHS = 2
+batch_size = 4
 model = BertClassifier()
 LR = 1e-6
 train(model, df_train, df_val, LR, EPOCHS)
+
+
+

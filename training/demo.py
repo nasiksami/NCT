@@ -25,7 +25,7 @@ class BertClassifier(nn.Module):
         return final_layer
 
 model = BertClassifier()
-model.load_state_dict(torch.load("./models/best_model_tf_idf_augmented_N1.pth"))
+model.load_state_dict(torch.load("./models/best_model_custom_augmented_fold_4.pth"))
 
 
 def predict_class(model, sentence):
