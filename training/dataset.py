@@ -28,7 +28,7 @@ class Dataset(torch.utils.data.Dataset):
 
         self.labels = [labels[label] for label in df['network_impact']]
         self.texts = []
-        self.tf_idf = [] #comment for baseline
+        self.tf_idf = []
 
         for i, row in df.iterrows():
             if row["_headline"] != row["_description"]:
@@ -46,10 +46,9 @@ class Dataset(torch.utils.data.Dataset):
                                         truncation=True,
                                         return_tensors="pt")
                 self.texts.append(tmp)
-                self.tf_idf.append(" ".join([str(x) for x in tmp.input_ids[0].numpy()])) #comment for baseline
+                self.tf_idf.append(" ".join([str(x) for x in tmp.input_ids[0].numpy()]))
 
 
-        # comment full block for baseline
         if train:
             vectorizer = TfidfVectorizer(use_idf=True,
                             smooth_idf=True,
@@ -63,10 +62,6 @@ class Dataset(torch.utils.data.Dataset):
             self.tf_features = vectorizer.transform(self.tf_idf)
 
         self.feature_names = np.array(vectorizer.get_feature_names_out())
-
-
-        #print(len(self.texts))
-
 
     def get_top_tf_idf_words(self, response, top_n=2):
         sorted_nzs = np.argsort(response.data)[:-(top_n+1):-1]
@@ -97,9 +92,7 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
 
         batch_texts = self.get_batch_texts(idx)
-        batch_tf = self.get_batch_tf_features(idx) #comment for baseline
+        batch_tf = self.get_batch_tf_features(idx)
         batch_y = self.get_batch_labels(idx)
 
         return batch_texts, batch_tf, batch_y
-
-        #return batch_texts, batch_y #comment #use for baseline

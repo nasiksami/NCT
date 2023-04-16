@@ -99,7 +99,7 @@ class BertClassifier(nn.Module):
         return final_layer
 
 model = BertClassifier()
-model.load_state_dict(torch.load("./models/best_model_tf_idf_augmented.pth"))
+model.load_state_dict(torch.load("./models/best_model_experiment.pth"))
 model.eval()
 
 evaluate(model, df)

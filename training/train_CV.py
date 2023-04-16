@@ -7,7 +7,7 @@ from torch.optim import Adam
 from tqdm import tqdm
 from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
-from dataset import Dataset
+from dataset_CV import Dataset
 import time
 from transformers import logging
 logging.set_verbosity_error()
